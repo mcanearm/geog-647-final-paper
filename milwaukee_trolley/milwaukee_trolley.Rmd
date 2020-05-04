@@ -1,0 +1,217 @@
+---
+title: 'Back to the Future: Insights into Public Transit Service through the Lens of Historical Streetcar Routes'
+author:
+  - name: Matt McAnear
+    email: mmcanear@nevada.unr.edu
+    affiliation: University of Nevada, Reno
+bibliography: references.bib
+csl: acm-sig-proceedings.csl
+output: rticles::acm_article
+---
+
+
+```{r setup, echo=FALSE, message=FALSE}
+suppressPackageStartupMessages(library(sf))
+suppressPackageStartupMessages(library(sp))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(data.table))
+knitr::opts_chunk$set(echo = FALSE, cache = TRUE, dev="png")
+options(scipen=100)
+```
+
+
+
+```{r raw_data_in, echo=FALSE, message=FALSE}
+void <- capture.output(allBlocks <- st_read('../data/paper-data/milwaukee-csa-blocks/milwaukee-blocks.shp'))
+void <- capture.output(
+  truncBlocks <- st_read('../data/paper-data/milwaukee_truncated_blocks/milwaukee_trunc_blocks.shp')
+)
+allBlocks$area <- st_area(allBlocks)
+
+
+# we are removing the largest five blocks, since they are 100% on water with no population and 
+# make the maps weird
+rm_block_id <- allBlocks[order(allBlocks$area, decreasing = TRUE), ][1:5, ]$gid
+milwaukee_blocks <- allBlocks[-which(allBlocks$gid %in% rm_block_id), ]
+truncBlocks <- truncBlocks[-which(truncBlocks$gid %in% rm_block_id), ]
+
+trolley_blocks <- read.csv('../data/paper-data/trolley_blocks.csv', stringsAsFactors = FALSE)
+trolley_blocks <- st_as_sf(trolley_blocks, wkt = 'geom', crs=26916)
+trolley_blocks <- trolley_blocks[-which(trolley_blocks$gid %in% rm_block_id), ]
+trolley_blocks$transport <- 'Trolley'
+uniqueTrolleyBlocks <- unique(trolley_blocks[, c('gid', 'pop10', 'housing10', 'transport')])
+
+bus_blocks <- read.csv('../data/paper-data/bus_blocks.csv', stringsAsFactors = FALSE)
+bus_blocks <- st_as_sf(bus_blocks, wkt = 'geom', crs=26916)
+bus_blocks <- bus_blocks[-which(bus_blocks$gid_left %in% rm_block_id), ]
+bus_blocks$transport <- 'Bus'
+uniqueBusBlocks <- unique(bus_blocks[, c('gid_left', 'pop10', 'housing10')])
+
+void <- capture.output(trolleyLines <- st_read('../data/paper-data/trolley-routes/trolley-routes.shp'))
+void <- capture.output(busLines <- st_read('../data/paper-data/bus-routes/bus-routes.shp'))
+```
+
+
+```{r, eval = FALSE}
+
+block_geo <- uniqueTrolleyBlocks$geom[2]
+trolley_geom <- st_union(st_buffer(trolleyRoutes$geometry, 1000))
+blockIntersections <- st_intersection(uniqueTrolleyBlocks$geom, trolley_geom)
+st_area(blockIntersections)/st_area(uniqueTrolleyBlocks)
+
+mclapply(uniqueTrolleyBlocks$geom, function(block_geo) {
+  geoArea <- st_area(block_geo)
+  geoArea
+  intersectArea <- st_intersection(
+    block_geo,
+    st_buffer(trolleyRoutes$geometry, dist=1000)
+  )
+  st_area(intersectArea)
+})
+st_area(trolleyIntersect)
+st_area(uniqueTrolleyBlocks$geom[1])
+
+st_area(uniqueTrolleyBlocks[1:5, ])
+st_area(trolleyIntersect)
+
+ggplot(data=trolleyIntersect) +
+  geom_sf(data = trolleyRoutesGeom) +
+  geom_sf(color='Blue', lwd = 5) 
+uniqueTrolleyBlocks[1, ]
+trolleyIntersect
+st_area(uniqueTrolleyBlocks)
+#st_intersection(uniqueTrolleyBlocks$geom[[1]], , dist = 1000))
+st_area(trolleyIntersect)/st_area(uniqueTrolleyBlocks)
+```
+
+
+<!-- bus_blocks <- read.csv('../data/bus_blocks.csv') -->
+<!-- trolley_blocks <- st_read('../data/trolley_blocks.csv', package='sf', crs=26916, stringsAsFactors = FALSE) -->
+<!-- st_set_crs(trolley_blocks, 26916) -->
+
+<!-- '+proj=utm +zone=16 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs' -->
+
+
+<!-- SpatialPolygonsDataFrame(trolley_blocks) -->
+
+
+
+
+# Introduction
+* History of Milwaukee streetcar / streetcars in cities
+* How does this history apply to other American cities?
+* How many people were served by streetcars? What was its modeshare?
+* How did the layout of cities contribute to the success/failure of the streetcar?
+
+# Methodology
+* Study area of Milwaukee
+* How were the routes generated and used
+    * Trolley Routes were imported from KML to QGis, and then uploaded to PostGreSQL for further analysis. A shapefile
+    of bus routes in Milwaukee was loaded into QGis and then put into PostgreSQL as well. Each file was converted to a 
+    UTM projection
+* Why compare bus routes
+
+# Data Analysis
+
+Consider the following two maps - first are the raw trolley routes overlaid on the
+Milwaukee metropolitan statistical area. 
+
+```{r populationService, fig.width=8, fig.height=10, fig.cap = "Current bus routes and 1938 trolley routes of Milwaukee laid over 2010 census blocks. All census blocks in the Milwaukee CSA are considered, but this set is truncated for legibility."}
+
+trolleyDT <- as.data.table(trolley_blocks)
+busDT <- as.data.table(bus_blocks)
+setnames(busDT, c('gid_left', 'gid_right'), c('gid', 'route_id'))
+transportRouteDT <- rbindlist(list(busDT, trolleyDT))
+routeDT <- transportRouteDT[, .(
+  'Pop Served' = sum(pop10),
+  'Housing Units Served' = sum(housing10)
+), by = c('transport', 'route_id')]
+
+void <- capture.output(trolleyRoutes <- st_read('../data/paper-data/trolley-routes/trolley-routes.shp'))
+trolleyRoutes$transport <- 'Trolley'
+
+void <- capture.output(busRoutes <- st_read('../data/paper-data/bus-routes/bus-routes.shp'))
+busRoutes$transport <- 'Bus'
+
+# clean up into a mergable format (there has to be a better way to do this)
+busRouteDT <- as.data.table(busRoutes[, c('gid', 'geometry', 'transport')])
+trolleyRouteDT <- as.data.table(trolleyRoutes[, c('route_id', 'geometry', 'transport')])
+setnames(busRouteDT, colnames(trolleyRouteDT))
+trolleyRouteDT$geometry <- st_cast(trolleyRouteDT$geometry, 'MULTILINESTRING')
+
+routeGeoms <- rbindlist(list(trolleyRouteDT, busRouteDT))
+routePopDT <- merge(routeDT, as.data.table(routeGeoms), 
+                    by.x = c('route_id', 'transport'), by.y = c('route_id', 'transport'), all.x = TRUE)
+
+routePopDT <- st_as_sf(routePopDT)
+ggplot(data = routePopDT, aes(color = transport)) +
+  scale_color_brewer(palette = 'Dark2') +
+  geom_sf(data = truncBlocks, lwd = 0.05, alpha=0.5, fill='White', 
+          color = 'Black', inherit.aes = FALSE) +
+  theme_bw() +
+  theme(legend.position = 'top', axis.text = element_blank(), axis.ticks = element_blank(),
+        panel.grid.major = element_blank(), text = element_text(size = 14)) +
+  guides(color = guide_legend(title = 'Route Type')) +
+  geom_sf() 
+```
+
+
+
+Big finding - there are no current census blocks that would be served by trolleys that are not already served by buses.
+
+
+```{r bus_trolley_plot, fig.width=8, fig.height=10, echo = FALSE, fig.cap="Map of the 4 counties comprising the Milwaukee MSA. The majority of the MSA by land area is not served by public transit into Milwaukee proper. The 1938 trolley network serves Milwaukee proper, while the buses serve only the outer city and inner suburbs.", message=FALSE}
+both <- intersect(uniqueBusBlocks$gid_left, uniqueTrolleyBlocks$gid)
+onlyBus <- setdiff(uniqueBusBlocks$gid_left, uniqueTrolleyBlocks$gid)
+onlyTrolley <- setdiff(uniqueTrolleyBlocks$gid, uniqueBusBlocks$gid_left)
+
+milwaukee_blocks$transport <- 'None'
+milwaukee_blocks$transport[which(milwaukee_blocks$gid %in% onlyBus)] <- 'Bus Only'
+milwaukee_blocks$transport[which(milwaukee_blocks$gid %in% onlyTrolley)] <- 'Trolley'
+milwaukee_blocks$transport[which(milwaukee_blocks$gid %in% both)] <- 'Trolley + Bus'
+
+bothBlocks <- uniqueTrolleyBlocks[which(uniqueTrolleyBlocks$gid %in% both), ]
+bothBlocks$transport <- 'Both'
+busOnlyBlocks <- uniqueBusBlocks[which(uniqueBusBlocks$gid_left %in% onlyBus), ]
+busOnlyBlocks$transport <- 'Bus Only'
+
+busOnlyBlocks <- busOnlyBlocks[, c('gid_left', 'pop10', 'housing10', 'transport')]
+names(busOnlyBlocks)[1] <- 'gid'
+fullSet <- rbind(bothBlocks, busOnlyBlocks)
+
+p <- ggplot(data = milwaukee_blocks, aes(fill = transport, color=transport)) +  
+  geom_sf(lwd=0.05, color='black') +
+  theme_bw() +
+  theme(legend.position = 'top', axis.text = element_blank(), axis.ticks = element_blank(),
+        panel.grid.major = element_blank(), text = element_text(size = 14)) +
+  guides(fill = guide_legend(title = 'Transport Type')) +
+  scale_fill_brewer(palette = 'Dark2')
+p
+
+```
+
+
+```{r lorenz_route_concentration, fig.cap="Lorenz Curves showing relative concentration of trolley and bus line population. }
+
+```
+
+
+* What extent does each public transit type cover Milwaukee?
+* Population served by:
+  * Buses
+  * Trolleys
+* What percentage of the population of Milwaukee area used to be served by public transit?
+  * Consider TOTAL population of Milwaukee in 1938 or 1940
+  * Compare against TOTAL Milwaukee MSA in 2010
+  * Plot Lorentz curve for concentration amount routes
+  * Predict higher concentration for bus routes
+
+# Discussion
+* What were the findings?
+* What conclusions can we draw about the layout of cities and the requirements of new light rail projects?
+* In what ways would historical routes provide higher or lower levels of service in modern context?
+
+# Conclusion
+* Quick restatement and wrap up.
+
+# References
