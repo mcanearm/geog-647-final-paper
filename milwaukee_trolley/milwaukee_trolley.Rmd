@@ -4,6 +4,17 @@ author:
   - name: Matt McAnear
     email: mmcanear@nevada.unr.edu
     affiliation: University of Nevada, Reno
+abstract: >
+  At its height, Milwaukee's streetcar system was an integral part of the transportation system. Like 
+  most American cities, the streetcar was dismanlted and replaced with buses after WWII.
+  This paper examines the question of who would be served by the Milwaukee trolley
+  system were it not demolished. As of today, modern bus lines run along and beyond the historical
+  lines, exceeding service levels in both population and geographic extent. Historical routes in 
+  Milwaukee do not offer any significantly better or worse level of service. Just as importantly,
+  busy historical trolley routes remain the busiest routes of today. While reimplemntation of the 1938 
+  trolley network as a light rail system would potentially provide some benefits to the city of Milwaukee,
+  these benefits would be isolated to light rail as a mode of transport, and not due to the 
+  particular effectiveness of the network.
 bibliography: references.bib
 csl: acm-sig-proceedings.csl
 output: rticles::acm_article
@@ -69,24 +80,20 @@ adjustedData <- lapply(dataSets, adjustPopulation)
 ```
 
 
-<!-- bus_blocks <- read.csv('../data/bus_blocks.csv') -->
-<!-- trolley_blocks <- st_read('../data/trolley_blocks.csv', package='sf', crs=26916, stringsAsFactors = FALSE) -->
-<!-- st_set_crs(trolley_blocks, 26916) -->
-
-<!-- '+proj=utm +zone=16 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs' -->
-
-
-<!-- SpatialPolygonsDataFrame(trolley_blocks) -->
-
-
-
 
 # Introduction
 
-* History of Milwaukee streetcar / streetcars in cities
-* How does this history apply to other American cities?
-* How many people were served by streetcars? What was its modeshare?
+* Like other systems in the early 20th century, Milwaukee's streetcars were operated
+by a private entity.
+
 * How did the layout of cities contribute to the success/failure of the streetcar?
+Unlike other American cities, Milwaukee's transit utilization was slightly lower than other major
+American cities[@simon_city-building_1996, pp. 100]. EXPAND
+
+* How many people were served by streetcars? What was its modeshare?
+In spite of this, Milwaukee served a large number of people[@moore_state_2014]
+* Milwaukee faced distinctive policital and legal battles for administrating an effective
+streetcar system.
 
 # Methodology
 
@@ -149,7 +156,7 @@ Modern bus routes not only cover the older trolley routes, but extend well past 
 Bus routes extend well outside the urban core. Still, the Milwaukee MSA
 extends much further than even the furthest flung bus routes.
 
-- Calculate the number of people living at/near the end of the lines (?)
+Compare this to historical population for trolley routes.
 
 ```{r populationService, fig.width=8, fig.height=10, fig.cap = "Current bus routes and 1938 trolley routes of Milwaukee laid over 2010 census blocks. All census blocks in the Milwaukee CSA are considered, but this set is truncated for legibility.", results='asis', fig.pos='here'}
 
@@ -286,6 +293,11 @@ p
   * Predict higher concentration for bus routes
 
 # Discussion
+
+When considering these historical streetcar lines, there are two ways to consider them. First,
+we may examine the role of old streetcars in the context of a modern population. Next, we may
+also consider a modern light rail system overlaid upon the historical streetcar system.
+
 * What were the findings?
 * What conclusions can we draw about the layout of cities and the requirements of new light rail projects?
 * In what ways would historical routes provide higher or lower levels of service in modern context?
