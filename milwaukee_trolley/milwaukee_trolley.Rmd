@@ -44,7 +44,7 @@ rm_block_id <- allBlocks[order(allBlocks$area, decreasing = TRUE), ][1:5, ]$gid
 milwaukee_blocks <- allBlocks[-which(allBlocks$gid %in% rm_block_id), ]
 
 # get routes
-void <- capture.output(trolleyRoutes <- st_read('../data/paper-data/trolley-routes/trolley-routes.shp'))
+void <- capture.output(trolleyRoutes <- st_read('../data/paper-data/trolley-routes/1917/routes.shp'))
 void <- capture.output(busRoutes <- st_read('../data/paper-data/bus-routes/bus-routes.shp'))
 busRoutes$transport <- 'Bus'
 trolleyRoutes$transport <- 'Trolley'
@@ -83,28 +83,44 @@ adjustedData <- lapply(dataSets, adjustPopulation)
 
 # Introduction
 
-* Like other systems in the early 20th century, Milwaukee's streetcars were operated
-by a private entity.
+The privately-owned Milwaukee Electric Railway & Light Company (TMER\&L Co.) purchased several smaller
+railway companies in Milwaukee to become the first city-wide trolley system[@noauthor_milwaukee_nodate-1]. 
+The history of Milwaukee's streetcar largely mirrors
+the history of other streetcar systems. Milwaukee's streetcar history differed from comparable cities
+due to population distribution, compact city development, and the inability of lower class
+citizens to afford fares. For these reasons, the streetcar network focused service 
+on the downtown area and less on outlying areas[@simon_city-building_1996].
 
-* How did the layout of cities contribute to the success/failure of the streetcar?
-Unlike other American cities, Milwaukee's transit utilization was slightly lower than other major
-American cities[@simon_city-building_1996, pp. 100]. EXPAND
+In spite of its lower than average utilization at the turn of the century, it is important to recognize
+that the Milwaukee streetcar system reamined an essential part of the transportation network, especially
+later into the 20th century. According to a 1928 report, streetcars comprised 5% of vehicles entering the city but over 47% of passengers; by comparison, automobiles comprised 77% of all vehicles, 
+but only 45% of passengers[@moore_state_2014].
 
-* How many people were served by streetcars? What was its modeshare?
-In spite of this, Milwaukee served a large number of people[@moore_state_2014]
-* Milwaukee faced distinctive policital and legal battles for administrating an effective
-streetcar system.
+This level of ridership would not be sustained, however. In March of 1958, the streetcar system was
+scrapped, finally succumbing to a combination of "(1) consumer preference, ...; (2) the capitalistic 
+ambitions of pro-roads industrialists; (3) federal economic incentives, ...; 
+and (4) simple (myopic) planning preference[,]" in addition to legal issues and constraints specific 
+to Milwaukee[@moore_state_2014].
+
+The national dismantling of streetcar systems is associated (and rightly so) with the emergence
+of the private automobile as the principle form of transit. But do the routes that once served so many
+people on streetcars remain important into the future? Is it the case that all public transit was dismantled,
+or rather, that old trolley lines were replaced with buses, retaining the level of service? To answer these
+queestions, we will overlay the historical trolley routes of Milwaukee over census blocks
+from the 2010 census to estimate the total population served by current bus routes and historical 
+trolleys.
 
 # Methodology
 
-The goal of this study is to estimate the population served by trolley routes 
-in historical Milwaukee. The trolley system in Milwaukee was not static
-over its 50+ year history. The system generally expanded since its founding
-in CITATION + YEAR FOUNDED until 1938, declining afterward. 
-To estimate our population served, we will use the system in 1938; this is when
-the system was at its maximum length. 
+The trolley system in Milwaukee was not static the system generally expanded since its founding
+until the early 20th century declining thereafter. To estimate our population served, 
+we will use the system in 1917; this is when the system was at its maximum length. 
 
+It was important to compare historical transit routes against a modern analogue, and for this
+we used the bus routes published by the city of Milwaukee in their open data portal[@noauthor_mclio_nodate].
 
+Some caution should be used when using these streetcar routes; they are not taken
+from an academic source
 NOTE: Investigate over-estimate of population along routes by assuming
 you can get on at any stop
 
@@ -113,8 +129,6 @@ get on a bus or could have gotten on a trolley at any point along its route. Thi
 doesn't matter as much for trolleys, but for buses this can lead to an especially
 large over-estimate of population, particular in the case of the northbound
 bus route.
-
-Note: clean up / regenerate the data used if possible, using only QGis.
 
 Trolley routes were imported from KML to QGis, and then uploaded to PostGreSQL 
 for further analysis. A shapefile of bus routes in Milwaukee was loaded into 
@@ -302,7 +316,25 @@ also consider a modern light rail system overlaid upon the historical streetcar 
 * What conclusions can we draw about the layout of cities and the requirements of new light rail projects?
 * In what ways would historical routes provide higher or lower levels of service in modern context?
 
+The mode share is not the important part. The determination of service is dependent on the 
+spatial organization of people and activities more than what transit option is provided.
+Considering that modern bus routes very often follow or overlap with the historical trolley routes,
+the same corridors have remained important over time. Yet the relative important of these corridors to the
+rest of the city has clearly declined, as we see in the deconcentration of passengers within lines. Bus routes
+in the Milwaukee region carry considerably more people in total, yet have a nearly {insert pct here}% decrease
+in riders per line.
+
+When transit planners advocate for new rail to revitalize a downtown area, this seems more like a way to
+put a positive, progressive spin on a less popular, but equally important idea - transportation is most
+effective when it goes where people are, and rather than incur the massive expense of expanding transportation
+lines further and further out of the city, density can be increased to bring more people close 
+to transportation options. That is to say, even if Milwaukee's trolley's had never been ripped up and
+replaced with buses, total ridership would have declined and new rails would have had to be built into 
+the growing suburban areas outside the city.
+
+
 # Conclusion
-* Quick restatement and wrap up.
+
+The hollowing out of American cities will not be undone by a revolution in light rail.
 
 # References
