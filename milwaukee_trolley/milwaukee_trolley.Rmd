@@ -11,7 +11,7 @@ abstract: >
   system were it not demolished. As of today, modern bus lines run along and beyond the historical
   lines, exceeding service levels in both population and geographic extent. Historical routes in 
   Milwaukee do not offer any significantly better or worse level of service. Just as importantly,
-  busy historical trolley routes remain the busiest routes of today. While reimplemntation of the 1938 
+  busy historical trolley routes remain the busiest routes of today. While reimplemntation of the 1917 
   trolley network as a light rail system would potentially provide some benefits to the city of Milwaukee,
   these benefits would be isolated to light rail as a mode of transport, and not due to the 
   particular effectiveness of the network.
@@ -48,6 +48,8 @@ void <- capture.output(trolleyRoutes <- st_read('../data/paper-data/trolley-rout
 void <- capture.output(busRoutes <- st_read('../data/paper-data/bus-routes/bus-routes.shp'))
 busRoutes$transport <- 'Bus'
 trolleyRoutes$transport <- 'Trolley'
+trolleyRoutes$len <- st_length(trolleyRoutes)
+busRoutes$len <- st_length(busRoutes)
 
 # find intersection of the routes and census blocks
 trolley_blocks <- st_intersection(allBlocks, st_buffer(trolleyRoutes, 1000))
@@ -118,11 +120,17 @@ we will use the system in 1917; this is when the system was at its maximum lengt
 
 It was important to compare historical transit routes against a modern analogue, and for this
 we used the bus routes published by the city of Milwaukee in their open data portal[@noauthor_mclio_nodate].
-
-Some caution should be used when using these streetcar routes; they are not taken
-from an academic source
-NOTE: Investigate over-estimate of population along routes by assuming
-you can get on at any stop
+While the new bus routes were easy to find from a well-maintained public source, there is no such 
+central repository for historical trolley routes. Digitization of these streetcar routes is 
+often left to the individual researcher through manual mapping from historical images. 
+In the case of Milwaukee, the original KML file used for this project was manully created by 
+re-tracing routes in Google Maps for a blog post about the new Milwaukee trolley 
+"The Hop[@joe_powell_historical_2015];" their source was a personal website[@bill_vandervoort_chicago_nodate].
+Maps in both locations visually align well with a newspaper publication about the history of 
+the streetcar[@mikkelson_look_nodate]. It would be ideal to have a scholarly source for the maps,
+but the data in question is difficult to come by. Still, the alignment between two
+separate sources from different authors validates that the maps provided in the KML are of a 
+high enough quality to use with caution.
 
 One large assumption of the current analysis is that a person can conceivably
 get on a bus or could have gotten on a trolley at any point along its route. This
@@ -134,45 +142,9 @@ Trolley routes were imported from KML to QGis, and then uploaded to PostGreSQL
 for further analysis. A shapefile of bus routes in Milwaukee was loaded into 
 QGis and then put into PostgreSQL as well. Each file was converted to a UTM 
 projection in QGis and finally output to standard ESRI shapefiles to use in the 
-final analysis. Similarly, bus routes were downloaded from Milwaukee's open 
-data portal and imported into QGis. Then, once converted to a UTM coordinate system
-they were exported to a shapefile.
+final analysis. These files are saved as part of the code for the project. 
 
-For each route system, we create a buffer of 1km around each transit route. With
-these buffers we find the intersection of the buffer polygons and census blocks.
-For any partial overlap, we calculate the percentage of overlap using a ratio
-of the polygon intersection and the original census block area. Assuming
-a uniform population within each census block, we multiply the 
-population and number of households by this ratio to find an estimated population
-served by a transit route.
-
-This analysis is performed twice. First, we do this on each individual trolley
-route and bus route. This allows us to estimate the total population served by 
-each route. However, this creates an issue of multiple counting - a particular
-block (and often is) served by multiple bus and trolley lines. These estimates
-are useful for comparing line by line, but not for aggregation.
-
-To examine fully aggregated results, we combine the route geometries into a single
-geom and take the union of each route. Once this is complete, we repeat the 
-route by route analysis for the aggregated polygon. This yields an estimate 
-of population served without the problem of multi counting.
-
-
-# Results
-
-Simple overlays of the historical streetcar routes and modern bus routes show 
-a strong overlap between the systems. In fact, there are no census blocks in Milwaukee
-that are covered by a historical trolley route but not by a modern bus route.
-Buses completely supplanted the streetcar in Milwaukee. This makes Milwaukee similar
-to other cities once home to extensive streetcar systems [CITATION].
-
-Modern bus routes not only cover the older trolley routes, but extend well past them.
-Bus routes extend well outside the urban core. Still, the Milwaukee MSA
-extends much further than even the furthest flung bus routes.
-
-Compare this to historical population for trolley routes.
-
-```{r populationService, fig.width=8, fig.height=10, fig.cap = "Current bus routes and 1938 trolley routes of Milwaukee laid over 2010 census blocks. All census blocks in the Milwaukee CSA are considered, but this set is truncated for legibility.", results='asis', fig.pos='here'}
+```{r populationService, fig.width = 4, fig.height = 7, fig.cap = "Current bus routes and 1917 trolley routes of Milwaukee laid over 2010 census blocks. All census blocks in the Milwaukee CSA are considered, but this set is truncated for legibility.", results='asis', fig.pos='here'}
 
 trolleyDT <- as.data.table(adjustedData$trolley_routes)
 busDT <- as.data.table(adjustedData$bus_routes)
@@ -201,7 +173,7 @@ ggplot(data = routePopDT, aes(color = transport)) +
   geom_sf(data = milwaukee_blocks, lwd = 0.05, alpha=0.5, fill='White', 
           color = 'Black', inherit.aes = FALSE) +
   theme_bw() +
-  theme(legend.position = 'top', panel.grid.major = element_blank(), text = element_text(size = 14)) +
+  theme(legend.position = 'top', panel.grid.major = element_blank(), text = element_text(size = 12)) +
   guides(color = guide_legend(title = 'Route Type')) +
   scale_x_continuous(limits = c(bbox['xmin'], bbox['xmax'])) +
   scale_y_continuous(limits = c(bbox['ymin'], bbox['ymax'])) +
@@ -209,21 +181,144 @@ ggplot(data = routePopDT, aes(color = transport)) +
 
 ```
 
-```{r total_transport_counts}
-allTransportBlocks <- as.data.table(rbind(adjustedData$trolley_total, adjustedData$bus_total))
-transportSummary <- allTransportBlocks[, .(
-  'Block Count' = .N,
-  'Population' = sum(pop10_adj),
-  'Pop/Line' = sprintf('%i', round(sum(pop10_adj)/max(lineCount), 0))
-), by = c('transport')]
-setnames(transportSummary, 'transport', 'Route Type')
-kable(transportSummary, format = 'latex', caption = 'Total population served by trolley network of 1938 and modern bus routes. Population per line is rounded to nearest integer.')
+
+For each route system, we create a buffer of 1km around each transit route. With
+these buffers we find the intersection of the buffer polygons and census blocks.
+For any partial overlap, we calculate the percentage of overlap using a ratio
+of the polygon intersection and the original census block area. Assuming
+a uniform population within each census block, we multiply the 
+population and number of households by this ratio to find an estimated population
+served by a transit route.
+
+```{r bus_trolley_plot, echo = FALSE, fig.cap="Map of the 4 counties comprising the Milwaukee MSA. The majority of the MSA by land area is not served by public transit into Milwaukee proper. The 1917 trolley network serves Milwaukee proper, while the buses serve only the outer city and inner suburbs.", fig.pos='here', message=FALSE}
+uniqueBusBlocks <- adjustedData$bus_total
+uniqueTrolleyBlocks <- adjustedData$trolley_total
+both <- intersect(uniqueBusBlocks$gid, uniqueTrolleyBlocks$gid)
+onlyBus <- setdiff(uniqueBusBlocks$gid, uniqueTrolleyBlocks$gid)
+onlyTrolley <- setdiff(uniqueTrolleyBlocks$gid, uniqueBusBlocks$gid)
+
+# assign groupings according to what transport is accessible
+milwaukee_blocks$transport <- 'None'
+milwaukee_blocks$transport[which(milwaukee_blocks$gid %in% onlyBus)] <- 'Bus Only'
+milwaukee_blocks$transport[which(milwaukee_blocks$gid %in% onlyTrolley)] <- 'Trolley'
+milwaukee_blocks$transport[which(milwaukee_blocks$gid %in% both)] <- 'Trolley + Bus'
+
+
+bothBlocks <- uniqueTrolleyBlocks[which(uniqueTrolleyBlocks$gid %in% both), ]
+bothBlocks$transport <- 'Both'
+busOnlyBlocks <- uniqueBusBlocks[which(uniqueBusBlocks$gid %in% onlyBus), ]
+busOnlyBlocks$transport <- 'Bus Only'
+
+fullSet <- rbind(bothBlocks, busOnlyBlocks)
+
+p <- ggplot(data = milwaukee_blocks, aes(fill = transport, color=transport)) +  
+  geom_sf(lwd=0.01, color='black') +
+  theme_bw() +
+  theme(legend.position = 'top', axis.text = element_blank(), axis.ticks = element_blank(),
+        panel.grid.major = element_blank(), text = element_text(size = 12)) +
+  guides(fill = guide_legend(title = 'Transport Type')) +
+  scale_fill_brewer(palette = 'Dark2')
+p
+
 ```
 
 
-Big finding - there are no current census blocks that would be served by trolleys that are not already served by buses.
+This analysis is performed twice. First, we do this on each individual trolley
+route and bus route. This allows us to estimate the total population served by 
+each route. However, this creates an issue of multiple counting - a particular
+block can be (and often is) served by multiple bus and trolley lines. These estimates
+are useful for comparing line by line, but not for aggregation.
 
-```{r lorenz_distributions, fig.cap="Lorenz Curves by travel mode. This methodology double counts population that is served by multiple lines, but does so equally across modes. Trolley lines are slightly more concentrated."}
+To examine fully aggregated results, we combine the route geometries into a single
+geom and take the union of each route. Once this is complete, we repeat the 
+route by route analysis for the aggregated polygon. This yields an estimate 
+of population served without the problem of multi counting.
+
+# Results
+
+Simple overlays of the historical streetcar routes and modern bus routes show 
+a strong overlap between the systems. In fact, there are no census blocks in Milwaukee
+that are covered by a historical trolley route but not by a modern bus route.
+Buses completely supplanted the streetcar in Milwaukee, and newer bus routes extend well beyond
+the historical trolley network.
+
+This finding is expected, but interesting nonetheless. In terms of the physical routes involved, the 21st 
+century bus lines should be offering the same mobility to residents that the older lines did. This does not
+confirm that levels of service were identical in the years following the dismantling of the trolley system,
+since our particular snapshots of the data are separated by around 100 years. We can conclude, however,
+that the bus lines have been built to service the central city, and by extension, that service
+to central Milwaukee remains a high priority for the transit network.
+
+
+```{r total_transport_counts, fig.pos='here'}
+trolleyRouteLength <- sum(st_length(trolleyRoutes))
+busRouteLength <- sum(st_length(busRoutes))
+routeLenDT <- data.table(
+    'transport' = c('Trolley', 'Bus'),
+    'len' = as.numeric(c(trolleyRouteLength, busRouteLength)/1000)
+)
+
+allTransportBlocks <- as.data.table(rbind(adjustedData$trolley_total, adjustedData$bus_total))
+transportSummary <- allTransportBlocks[, .(
+  # 'Block Count' = .N,
+  'Population' = sum(pop10_adj),
+  'Pop/Line' = sprintf('%i', round(sum(pop10_adj)/max(lineCount), 0))
+), by = c('transport')]
+transportSummary <- merge(transportSummary, routeLenDT, by = c('transport'))
+transportSummary[, pop_p_km := Population/len]
+# routeLengths <- rbindlist(list(trolleyDT, busDT), use.names = TRUE, fill = TRUE)
+# routeLengths[, max(len), by = c('route_id', 'transport')]
+kable(transportSummary[, .(transport, Population, `Pop/Line`, len, pop_p_km)], format = 'latex', caption = 'Total population served by trolley network of 1917 and modern bus routes. Population per line and per kilometer is rounded to nearest integer.', digits = 0, col.names = c('Mode', 'Pop', 'Pop/Line', 'Route-Km', 'Pop/Km'))
+```
+
+Examining the lines in more detail adds some color on the interplay between new routes and old. At the highest level buses serve `r sprintf('%0.0f', ((transportSummary[transport == 'Bus', Population] - transportSummary[transport == 'Trolley', Population])/transportSummary[transport == 'Bus', Population])*100)` 
+percent more people than trolleys, but with `r sprintf('%0.0f', ((transportSummary[transport == 'Bus', len] - transportSummary[transport == 'Trolley', len])/transportSummary[transport == 'Bus', len])*100)` 
+percent more route-kilometers. This would seem to indicate
+that although more people are served by bus routes than the older trolley routes, and overlay the old routes, the new routes that have been added serve a small number of additional people. 
+
+```{r, echo = FALSE, fig.cap = 'Kernel density estimation and two sample t-test comparing population density of census blocks served by a trolley line and those served exclusively by a bus line.', message=FALSE, warning=FALSE, fig.pos='here'}
+separateBlockTransportData <- allTransportBlocks[transport == 'Trolley' | (transport == 'Bus' & gid %in% onlyBus)]
+separateBlockTransportData[, ppl_square_km := as.numeric(pop10/(area/1000^2))]
+
+busTrolleyTest <- t.test(
+    separateBlockTransportData[transport == 'Trolley', ppl_square_km], 
+    separateBlockTransportData[transport == 'Bus', ppl_square_km]
+)
+
+reportResult <- c(busTrolleyTest$estimate, busTrolleyTest$statistic, busTrolleyTest$p.value)
+names(reportResult) <- c('Trolley Mean', 'Bus Mean', 't-statistic', 'p-value')
+
+ggplot(data = separateBlockTransportData, aes(x = ppl_square_km, fill = transport)) +
+    geom_density(alpha = 0.75) +
+    scale_x_log10() +
+    theme_bw() +
+    scale_fill_brewer(palette = 'Dark2')  +
+    annotate('text', x = 5, y = 1.0, 
+             label = paste0(sprintf('%s: %0.02f', names(reportResult), reportResult), collapse='\n'), 
+             hjust=0) +
+    theme(axis.title.y = element_blank()) +
+    xlab(bquote('People/km'^2)) +
+    guides(fill = guide_legend(title = 'Transport Mode'))
+
+```
+
+To test this, we will compare our trolley-served blocks against those census blocks served only by bus 
+routes. Because the census create blocks to have roughly equal population but with varying size, 
+we divide the population of a block by the area of the block to get the population density. 
+The differences between these two groups are highly significant. Census blocks with access to a trolley route,
+on average, have a density of `r sprintf('%0.0f', reportResult['Trolley Mean'])` people per kilometer; by
+comparison, bus routes have an average density of 
+`r sprintf('%0.0f', reportResult['Bus Mean'])` (`r sprintf('%0.0f', ((reportResult['Trolley Mean'] - reportResult['Bus Mean'])/reportResult['Trolley Mean'])*100)` percent higher).
+
+This is a somewhat obvious finding, but the degree is of concentration between downtown and the outlying
+census blocks served by buses is unexpectedly high. Though the population of Milwaukee has spread out
+to suburban areas like most American cities, it is still that the largest proportion of people served
+by transit are concetrated in the core of the city. 
+
+<!-- Across the city, transit lines are not generally very concentrated, though the population served is  -->
+<!-- more concentrated among trolley routes than bus routes. In this case -->
+
+```{r lorenz_distributions, fig.cap="Lorenz Curves by travel mode. This methodology double counts population that is served by multiple lines, but does so equally across modes. Trolley lines are slightly more concentrated.", include = FALSE}
 
 plotData <- as.data.table(routePopDT)
 
@@ -262,51 +357,18 @@ ggplot(data = lorenzData, aes(x=id_pct, y = pop_pct, col = transport)) +
 
 
 
-```{r bus_trolley_plot, fig.width=8, fig.height=10, echo = FALSE, fig.cap="Map of the 4 counties comprising the Milwaukee MSA. The majority of the MSA by land area is not served by public transit into Milwaukee proper. The 1938 trolley network serves Milwaukee proper, while the buses serve only the outer city and inner suburbs.", message=FALSE}
-uniqueBusBlocks <- adjustedData$bus_total
-uniqueTrolleyBlocks <- adjustedData$trolley_total
-both <- intersect(uniqueBusBlocks$gid, uniqueTrolleyBlocks$gid)
-onlyBus <- setdiff(uniqueBusBlocks$gid, uniqueTrolleyBlocks$gid)
-onlyTrolley <- setdiff(uniqueTrolleyBlocks$gid, uniqueBusBlocks$gid)
+TODO: add historical statistics around light rail utilization here;
 
-# assign groupings according to what transport is accessible
-milwaukee_blocks$transport <- 'None'
-milwaukee_blocks$transport[which(milwaukee_blocks$gid %in% onlyBus)] <- 'Bus Only'
-milwaukee_blocks$transport[which(milwaukee_blocks$gid %in% onlyTrolley)] <- 'Trolley'
-milwaukee_blocks$transport[which(milwaukee_blocks$gid %in% both)] <- 'Trolley + Bus'
-
-
-bothBlocks <- uniqueTrolleyBlocks[which(uniqueTrolleyBlocks$gid %in% both), ]
-bothBlocks$transport <- 'Both'
-busOnlyBlocks <- uniqueBusBlocks[which(uniqueBusBlocks$gid %in% onlyBus), ]
-busOnlyBlocks$transport <- 'Bus Only'
-
-fullSet <- rbind(bothBlocks, busOnlyBlocks)
-
-p <- ggplot(data = milwaukee_blocks, aes(fill = transport, color=transport)) +  
-  geom_sf(lwd=0.05, color='black') +
-  theme_bw() +
-  theme(legend.position = 'top', axis.text = element_blank(), axis.ticks = element_blank(),
-        panel.grid.major = element_blank(), text = element_text(size = 14)) +
-  guides(fill = guide_legend(title = 'Transport Type')) +
-  scale_fill_brewer(palette = 'Dark2')
-p
-
-```
-
-
-
-* What extent does each public transit type cover Milwaukee?
-* Population served by:
-  * Buses
-  * Trolleys
 * What percentage of the population of Milwaukee area used to be served by public transit?
-  * Consider TOTAL population of Milwaukee in 1938 or 1940
+  * Consider TOTAL population of Milwaukee in 1917
   * Compare against TOTAL Milwaukee MSA in 2010
   * Plot Lorentz curve for concentration amount routes
   * Predict higher concentration for bus routes
+  * Check against CSA and maybe just Milwaukee county
 
 # Discussion
+
+START a discussion on the merits/benefits/ and literature around light rail here.
 
 When considering these historical streetcar lines, there are two ways to consider them. First,
 we may examine the role of old streetcars in the context of a modern population. Next, we may
