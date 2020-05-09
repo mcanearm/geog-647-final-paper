@@ -82,7 +82,6 @@ adjustedData <- lapply(dataSets, adjustPopulation)
 ```
 
 
-
 # Introduction
 
 The privately-owned Milwaukee Electric Railway & Light Company (TMER\&L Co.) purchased several smaller
@@ -94,7 +93,7 @@ citizens to afford fares. For these reasons, the streetcar network focused servi
 on the downtown area and less on outlying areas[@simon_city-building_1996].
 
 In spite of its lower than average utilization at the turn of the century, it is important to recognize
-that the Milwaukee streetcar system reamined an essential part of the transportation network, especially
+that the Milwaukee streetcar system remained an essential part of the transportation network, especially
 later into the 20th century. According to a 1928 report, streetcars comprised 5% of vehicles entering the city but over 47% of passengers; by comparison, automobiles comprised 77% of all vehicles, 
 but only 45% of passengers[@moore_state_2014].
 
@@ -138,13 +137,14 @@ doesn't matter as much for trolleys, but for buses this can lead to an especiall
 large over-estimate of population, particular in the case of the northbound
 bus route.
 
-Trolley routes were imported from KML to QGis, and then uploaded to PostGreSQL 
-for further analysis. A shapefile of bus routes in Milwaukee was loaded into 
+Trolley routes (in KML format) and 2010 census block population estimates (as a shapefile) for 
+the nation were imported from KML loaded into PostGreSQL. Once in PostgreSQL, routes
+were load into QGis for easier manipulation. A shapefile of bus routes in Milwaukee was loaded into 
 QGis and then put into PostgreSQL as well. Each file was converted to a UTM 
 projection in QGis and finally output to standard ESRI shapefiles to use in the 
-final analysis. These files are saved as part of the code for the project. 
+final analysis. 
 
-```{r populationService, fig.width = 4, fig.height = 7, fig.cap = "Current bus routes and 1917 trolley routes of Milwaukee laid over 2010 census blocks. All census blocks in the Milwaukee CSA are considered, but this set is truncated for legibility.", results='asis', fig.pos='here'}
+```{r populationService, fig.height = 4, fig.cap = "Current bus routes and 1917 trolley routes of Milwaukee laid over 2010 census blocks. All census blocks in the Milwaukee CSA are considered, but this set is truncated for legibility.", results='asis', fig.pos='here'}
 
 trolleyDT <- as.data.table(adjustedData$trolley_routes)
 busDT <- as.data.table(adjustedData$bus_routes)
@@ -167,13 +167,15 @@ routePopDT <- merge(routeDT, as.data.table(routeGeoms),
                     by.x = c('route_id', 'transport'), by.y = c('route_id', 'transport'), all.x = TRUE)
 
 routePopDT <- st_as_sf(routePopDT)
+routePopDT$category <- cut(routePopDT$`Pop Served`, breaks = c(0, 50000, 100000, Inf))
 bbox <- st_bbox(busRouteDT$geometry)
-ggplot(data = routePopDT, aes(color = transport)) +
-  scale_color_brewer(palette = 'Dark2') +
-  geom_sf(data = milwaukee_blocks, lwd = 0.05, alpha=0.5, fill='White', 
-          color = 'Black', inherit.aes = FALSE) +
+ggplot(data = routePopDT, aes(color = category)) +
+  # scale_color_brewer(palette = 'Dark2') +
+  # geom_sf(data = milwaukee_blocks, lwd = 0.05, alpha=0.5, fill='White', 
+  #         color = 'Black', inherit.aes = FALSE) +
   theme_bw() +
-  theme(legend.position = 'top', panel.grid.major = element_blank(), text = element_text(size = 12)) +
+    facet_wrap(~ transport) +
+  theme(legend.position = 'top', panel.grid.major = element_blank(), axis.text = element_blank(), axis.ticks = element_blank()) +
   guides(color = guide_legend(title = 'Route Type')) +
   scale_x_continuous(limits = c(bbox['xmin'], bbox['xmax'])) +
   scale_y_continuous(limits = c(bbox['ymin'], bbox['ymax'])) +
@@ -190,7 +192,7 @@ a uniform population within each census block, we multiply the
 population and number of households by this ratio to find an estimated population
 served by a transit route.
 
-```{r bus_trolley_plot, echo = FALSE, fig.cap="Map of the 4 counties comprising the Milwaukee MSA. The majority of the MSA by land area is not served by public transit into Milwaukee proper. The 1917 trolley network serves Milwaukee proper, while the buses serve only the outer city and inner suburbs.", fig.pos='here', message=FALSE}
+```{r bus_trolley_plot, echo = FALSE, fig.height=4, fig.cap="Map of the 4 counties comprising the Milwaukee MSA. The majority of the MSA by land area is not served by public transit into Milwaukee proper. The 1917 trolley network serves Milwaukee proper, while the buses serve only the outer city and inner suburbs.", fig.pos='here', message=FALSE}
 uniqueBusBlocks <- adjustedData$bus_total
 uniqueTrolleyBlocks <- adjustedData$trolley_total
 both <- intersect(uniqueBusBlocks$gid, uniqueTrolleyBlocks$gid)
@@ -245,9 +247,9 @@ the historical trolley network.
 This finding is expected, but interesting nonetheless. In terms of the physical routes involved, the 21st 
 century bus lines should be offering the same mobility to residents that the older lines did. This does not
 confirm that levels of service were identical in the years following the dismantling of the trolley system,
-since our particular snapshots of the data are separated by around 100 years. We can conclude, however,
-that the bus lines have been built to service the central city, and by extension, that service
-to central Milwaukee remains a high priority for the transit network.
+since our particular snapshots of the data are separated by around 100 years. Further, without data
+on headways and transit times, we cannot say how well these lines actually serve the population
+that lives within a community. 
 
 
 ```{r total_transport_counts, fig.pos='here'}
@@ -271,10 +273,12 @@ transportSummary[, pop_p_km := Population/len]
 kable(transportSummary[, .(transport, Population, `Pop/Line`, len, pop_p_km)], format = 'latex', caption = 'Total population served by trolley network of 1917 and modern bus routes. Population per line and per kilometer is rounded to nearest integer.', digits = 0, col.names = c('Mode', 'Pop', 'Pop/Line', 'Route-Km', 'Pop/Km'))
 ```
 
-Examining the lines in more detail adds some color on the interplay between new routes and old. At the highest level buses serve `r sprintf('%0.0f', ((transportSummary[transport == 'Bus', Population] - transportSummary[transport == 'Trolley', Population])/transportSummary[transport == 'Bus', Population])*100)` 
+Examining the lines in more detail adds color to the interplay between new routes and old. At the highest level buses serve `r sprintf('%0.0f', ((transportSummary[transport == 'Bus', Population] - transportSummary[transport == 'Trolley', Population])/transportSummary[transport == 'Bus', Population])*100)` 
 percent more people than trolleys, but with `r sprintf('%0.0f', ((transportSummary[transport == 'Bus', len] - transportSummary[transport == 'Trolley', len])/transportSummary[transport == 'Bus', len])*100)` 
-percent more route-kilometers. This would seem to indicate
-that although more people are served by bus routes than the older trolley routes, and overlay the old routes, the new routes that have been added serve a small number of additional people. 
+percent more route-kilometers. This indicates that more people are served by bus routes than trolley routes,
+but the new routes that have been added serve a small number of additional people relative to the additional
+length of route required. Since the cost of each additional mile is relatively fixed (to a point), each
+person in further flung areas is additonally less profitable for the transit authority.
 
 ```{r, echo = FALSE, fig.cap = 'Kernel density estimation and two sample t-test comparing population density of census blocks served by a trolley line and those served exclusively by a bus line.', message=FALSE, warning=FALSE, fig.pos='here'}
 separateBlockTransportData <- allTransportBlocks[transport == 'Trolley' | (transport == 'Bus' & gid %in% onlyBus)]
@@ -309,11 +313,6 @@ The differences between these two groups are highly significant. Census blocks w
 on average, have a density of `r sprintf('%0.0f', reportResult['Trolley Mean'])` people per kilometer; by
 comparison, bus routes have an average density of 
 `r sprintf('%0.0f', reportResult['Bus Mean'])` (`r sprintf('%0.0f', ((reportResult['Trolley Mean'] - reportResult['Bus Mean'])/reportResult['Trolley Mean'])*100)` percent higher).
-
-This is a somewhat obvious finding, but the degree is of concentration between downtown and the outlying
-census blocks served by buses is unexpectedly high. Though the population of Milwaukee has spread out
-to suburban areas like most American cities, it is still that the largest proportion of people served
-by transit are concetrated in the core of the city. 
 
 <!-- Across the city, transit lines are not generally very concentrated, though the population served is  -->
 <!-- more concentrated among trolley routes than bus routes. In this case -->
@@ -356,43 +355,88 @@ ggplot(data = lorenzData, aes(x=id_pct, y = pop_pct, col = transport)) +
 ```
 
 
-
-TODO: add historical statistics around light rail utilization here;
-
-* What percentage of the population of Milwaukee area used to be served by public transit?
-  * Consider TOTAL population of Milwaukee in 1917
-  * Compare against TOTAL Milwaukee MSA in 2010
-  * Plot Lorentz curve for concentration amount routes
-  * Predict higher concentration for bus routes
-  * Check against CSA and maybe just Milwaukee county
-
 # Discussion
 
-START a discussion on the merits/benefits/ and literature around light rail here.
+The empirical findings here follow the literature and traditional wisdom of American city development.
+But it intersting what has not changed from 1917 - the center of the city, despite
+a general decrease in population, remains the highest density area of the city. The densest areas of 
+Milwaukee have a population density north of 3,000 people per square kilometer, or about 7,700 people 
+per square mile. Transport improvements there affect a proportionately large of number people when 
+compared to suburbs and new areas that emerged beyond the reach of streetcar lines.
 
-When considering these historical streetcar lines, there are two ways to consider them. First,
-we may examine the role of old streetcars in the context of a modern population. Next, we may
-also consider a modern light rail system overlaid upon the historical streetcar system.
+When comparing any rail based intervention, it is worth considering the extents of possible implementation.
+Streetcars and light rail are often terms that are used interchangeably; the differences are often 
+in service more than form. Light rail may extend further into suburbs than streetcar and be grade
+separated on some or all of its routes[@william_t_king_economic_2014]. 
+Our new hypothetical Milwaukee network could be streetcars mingling
+in traffic, or it could be completely grade separated underground light rail trains. These
+options carry wildly different cost constraints and service level expectations, but as our system
+is strictly imaginary, we should consider various levels of service to identify potential improvements
+over current bus infrastructure.
 
-* What were the findings?
+Given this flexibility, is a valid strategy for reducing automobile dependency to 
+re-create trolley lines as light rail and/or streetcar lines? The evidence is mixed. 
+Spatially, the new light rail lines would not add any areas underserved by buses to the 
+greater transit network, no matter what type of network is instituted. Several 
+sources indicate the transit ridership is not dramatically improved through
+creation of light rail[@william_t_king_economic_2014][@mallett_federal_nodate]. However, in complete 
+opposition to these findings, another study estimated 670% increased ridership on a light
+rail line over the previous bus line it replaced[@werner_evaluating_2016]. This large increase had 
+several theorized origins - including the complementary nature of the route, as it fed directly into
+a commuter rail system. And further, the final count of passengers could be rather small compared to 
+the automobile traffic along the same corridor, but this was not directly measured or stated in the study.
+
+Whether one agrees that the implementation of light rail would be a benefit or effectively 
+"buses on rails," any transformational change to the city would have to come from the mode share itself. 
+The cities of 1917 were denser than the cities of 2021. Kenneth Jackson put it best regarding the era of 
+the walking city:
+
+> On the European continent, ... [g]ross densities normally exceeded 75,000 per square mile and were rarely less than 35,000 per square mile, which is about the level of crowding of New York City in the 1980s. Although North American cities were newer and smaller than their European counterparts, they exhibited the same degree of intense, innercity congestion[@jackson_crabgrass_1985].
+
+Cities of the streetcar era were not the same density levels as cities of the walking era, and thus we can 
+expect that Milwaukee of 1917 was less dense than the figures quoted here. However, it was certainly 
+more dense than the Milwaukee of the mid 20 century.
+
+Transit is a tradeoff between massification and atomization, and the effect of a light rail 
+system is to add a high-mass transportation mode between destinations or along a given route. Yet without
+the underlying conditions that support mass transit, it is not abundantly clear where the new economic
+benefits will come from. 
+
+Milwaukee is one of the many cities experimenting with new streetcar/light rail routes. Its 
+new system, "The Hop" is, a private public partnership that primarily serves a Milwaukee's 
+downtown area and affluent neighborhoods of the Third Ward, but instead of being viewed as a transportation
+project, it is seen seen as driver of economic development. In its current form, The Hop mostly accrues
+benefits to just the downtown core and private entities therein[@diciaula_transit-oriented_2019]. 
+The Hop's route coincides with some older routes, but does not go to nearly as many destinations and lacks
+the interconnectivity with other transportation options to be fully utilized as a primary 
+means of transportation.
+
+TODO: add map showing Milwaukee census blocks with no population!
+
 * What conclusions can we draw about the layout of cities and the requirements of new light rail projects?
 * In what ways would historical routes provide higher or lower levels of service in modern context?
 
-The mode share is not the important part. The determination of service is dependent on the 
-spatial organization of people and activities more than what transit option is provided.
-Considering that modern bus routes very often follow or overlap with the historical trolley routes,
-the same corridors have remained important over time. Yet the relative important of these corridors to the
-rest of the city has clearly declined, as we see in the deconcentration of passengers within lines. Bus routes
-in the Milwaukee region carry considerably more people in total, yet have a nearly {insert pct here}% decrease
-in riders per line.
+This method of transit development is valid, but it is tangential to the primary purpose of said transit -
+to serve as a linkage between people, goods, and services. Economic development
+and even aesthetics be benefits of transportation projects, but if the transportation mode does not 
+actually serve any the derived demands along its routes, the mechanism by whch the stated benefits
+accrue is unclear. In terms of people transported, the level of service is dependent on the 
+spatial organization of people and activities more 
+than what transit option is provided. That is to say, even if Milwaukee's trolleys had never been 
+ripped up and replaced with buses, their routes would still be connecting areas of decreasing 
+population in the downtown core.
 
-When transit planners advocate for new rail to revitalize a downtown area, this seems more like a way to
-put a positive, progressive spin on a less popular, but equally important idea - transportation is most
-effective when it goes where people are, and rather than incur the massive expense of expanding transportation
-lines further and further out of the city, density can be increased to bring more people close 
-to transportation options. That is to say, even if Milwaukee's trolley's had never been ripped up and
-replaced with buses, total ridership would have declined and new rails would have had to be built into 
-the growing suburban areas outside the city.
+In the case of Milwaukee especially, in order for trolley routes to provide service equal to the 
+existing bus lines, they would not only need to be replaced in downtown Milwaukee, 
+but expanded into suburban areas. If the simplest streetcar developments were put into place, we would
+expect relatively low capacity vehicles mixing in traffic and there would be little difference
+between buses and trolleys at that point. If, however, the city of Milwaukee were to drastically
+upzone in the downtown area, suddenly light rail becomes a more attractive options, as higher
+capcity vehicles with more reliable service could be used. Density could be increased to bring 
+more people close to transportation options. 
+
+It seems evident that transportation plans would need to be enacted simultaneously as part of a 
+transit oriented development 
 
 
 # Conclusion
