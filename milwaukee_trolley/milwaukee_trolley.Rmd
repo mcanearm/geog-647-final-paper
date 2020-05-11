@@ -25,7 +25,7 @@ output:
   bookdown::pdf_book:
     base_format: rticles::acm_article
 nocite: |
-  @r_core_team_r_2013,@wickham_ggplot2_2016,@dowle_classes_nodate,@pebesma_simple_2018,@xie_r_2018,@xie_knitr_2020
+  @r_core_team_r_2013,@wickham_ggplot2_2016,@dowle_classes_nodate,@pebesma_simple_2018,@xie_r_2018,@xie_knitr_2020,@rticles_citation
 ---
 
 
