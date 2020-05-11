@@ -43,13 +43,12 @@ options(scipen=100)
 
 
 ```{r raw_data_in, echo=FALSE, message=FALSE, warning=FALSE}
-void <- capture.output(allBlocks <- st_read('../data/paper-data/milwaukee-csa-blocks/milwaukee-blocks.shp'))
+void <- capture.output(allBlocks <- st_read('../data/paper-data/milwaukee_msa/milwaukee_msa.shp'))
 allBlocks$area <- st_area(allBlocks)
 
-    # extra_dependencies: ["float", "flafter"]
-# we are removing the largest five blocks, since they are 100% on water with no population and 
-# make the maps weird
-rm_block_id <- allBlocks[order(allBlocks$area, decreasing = TRUE), ][1:5, ]$gid 
+# we are removing the largest largest four blocks, since they are 100% on water 
+# with no population and make the maps weird
+rm_block_id <- allBlocks[order(allBlocks$area, decreasing = TRUE), ][1:4, ]$gid 
 milwaukee_blocks <- allBlocks[-which(allBlocks$gid %in% rm_block_id), ]
 
 # get routes
@@ -465,7 +464,7 @@ specifically another corridor within Tuscon and in Atlanta, new transit investme
 failed to increase property values, seeing the same property value decrease as the rest
 of the city over the study period [@william_t_king_economic_2014].
 
-In these instances, this speaks to the role of streetcar networks as enablers,
+These instances speak to the role of streetcar networks as enablers,
 but not drivers, of economic activity. Density is a critical ingredient
 in the success of light rail networks, so it should not be a surprise that
 the busy streetcar networks of early 20th century American cities operated at a time
