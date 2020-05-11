@@ -411,7 +411,7 @@ the new bus routes with the trolley network?
 In short, the new rail lines would not add any areas currently under-served by buses to the 
 greater transit network. Next, if bus routes were removed and the entire bus
 network were replaced with a new light rail system along historical lines, the
-total population within 1km of the line would be reduced by `r sprintf('%0.0f', ((transportSummary[transport == 'Bus', Population] - transportSummary[transport == 'Trolley', Population])/transportSummary[transport == 'Bus', Population])*100)`. 
+total population within 1km of the line would be reduced by `r sprintf('%0.0f', ((transportSummary[transport == 'Bus', Population] - transportSummary[transport == 'Trolley', Population])/transportSummary[transport == 'Bus', Population])*100)` percent. 
 
 
 # Discussion
